@@ -30,6 +30,33 @@
             float: left;
         }
 
+        #choices {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: row;
+        }
+
+        #choices li {
+            padding: 1em;
+            margin: 1em;
+            flex: 1;
+            box-shadow: 0 0 10px #f0f;
+            text-align: center;
+            cursor: pointer;
+            min-width: 0;
+        }
+
+        #choices li img {
+            max-width: 100%;
+            object-fit: contain;
+        }
+
+        #choices li:hover {
+            box-shadow: 0 0 15px #0ff;
+        }
+
         .hidden {
             display: none;
         }
@@ -44,8 +71,10 @@
     <section class="hidden quiz">
         <a id="clear_playlist" href="#">&larr; Choose a playlist</a>
         <h1></h1>
+
         <audio id="preview" autoplay loop controls></audio>
-        <ul id="tracks"></ul>
+
+        <ul id="choices"></ul>
     </section>
 
     <script type="text/javascript">
@@ -155,15 +184,72 @@
             })
             document.querySelector("section.quiz h1").textContent = localStorage.getItem("playlist_name");
             load_playlist(localStorage.getItem("playlist_tracks")).then(tracks => {
-                tracks.forEach(add_track);
+                play_a_round(tracks);
             });
+        }
+
+        function play_a_round(tracks) {
+            console.log(tracks.length);
+            const choices = sample(tracks, 3);
+            console.log(choices);
+            display_choices(choices);
+        }
+
+        function display_choices(choices) {
+            const ul = document.getElementById("choices");
+            const correct = sample(choices, 1)[0];
+            const render_item = sample([
+                render_item_track_name,
+                render_item_artist_names,
+                render_item_artwork,
+            ], 1)[0];
+
+            for (const choice of choices) {
+                const li = render_item(choice);
+                li.addEventListener("click", () => {
+                    choice_made(choice, choice === correct);
+                });
+                ul.appendChild(li);
+            }
+            play_preview(correct.preview_url);
+        }
+
+        function render_item_track_name(track) {
+            const li = document.createElement("li");
+            li.textContent = track.name;
+            return li;
+        }
+
+        function render_item_artist_names(track) {
+            const li = document.createElement("li");
+            li.textContent = track.artists.map(artist => artist.name).join(", ");
+            return li;
+        }
+
+        function render_item_artwork(track) {
+            if (!track.album.images.length) {
+                console.log("No images for track.", track);
+                return render_item_track_name(track);
+            }
+            const li = document.createElement("li");
+            const img = document.createElement("img");
+            img.src = track.album.images[0].url;
+            li.appendChild(img);
+            return li;
+        }
+
+        function choice_made(choice, correct) {
+            console.log(correct ? "CORRECT!" : "Nope :(");
+            setTimeout(() => { location.reload() }, 1000);
         }
 
         function load_playlist(url, tracks) {
             tracks = tracks || [];
             return spotify_fetch(url).then(({items, next}) => {
                 items.forEach(({track}) => {
-                    tracks.push(track);
+                    if (track.preview_url) {
+                        tracks.push(track);
+                    }
                 });
                 if (next) {
                     return load_playlist(next, tracks);
@@ -183,16 +269,18 @@
             var li = document.createElement("li");
             li.textContent = name;
             li.addEventListener("click", () => {
+                console.log(album);
                 play_preview(preview_url);
             })
             ul.appendChild(li);
         }
 
         function play_preview(preview_url) {
+            console.log(preview_url);
             const audio = document.querySelector("audio#preview");
-            audio.pause();
+            // audio.pause();
             audio.src = preview_url;
-            audio.play();
+            // audio.play();
         }
 
         function handle_auth_callback() {
@@ -212,6 +300,14 @@
             });
             location.hash = '';
             return hash;
+        }
+
+        function sample(population, k) {
+            const chosen = new Set([]);
+            while (chosen.size < k) {
+                chosen.add(population[Math.floor(Math.random() * Math.floor(population.length))]);
+            }
+            return Array.from(chosen);
         }
 
         document.addEventListener("DOMContentLoaded", () => {
