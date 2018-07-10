@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Spotify Music Quiz</title>
+    <style>
+        body {
+            font-family: system-ui, sans-serif;
+            margin: 0;
+            padding: 1em;
+            background-color: black;
+            color: silver;
+        }
+
+        a, a:visited {
+            text-decoration: none;
+            color: white;
+        }
+
+        #playlists {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            position: relative;
+        }
+        #playlists li {
+            margin: 1em 0;
+            float: left;
+        }
+
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <section class="hidden playlists">
+        <h1>Choose a playlist</h1>
+        <ul id="playlists"></ul>
+    </section>
+
+    <section class="hidden quiz">
+        <a id="clear_playlist" href="#">&larr; Choose a playlist</a>
+        <h1></h1>
+        <audio id="preview" autoplay loop controls></audio>
+        <ul id="tracks"></ul>
+    </section>
+
+    <script type="text/javascript">
+        // (() => {
+
+        const client_id = '4f23cdad03ba4bdda4098bc19df5f53a';
+
+        function spotify_fetch(url) {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                return refresh_token();
+            }
+            if (!url.startsWith("https://")) {
+                url = "https://api.spotify.com" + url;
+            }
+            return fetch(
+                url,
+                {
+                    method: "GET",
+                    headers: {
+                        Authorization: "Bearer " + token,
+                        Accept: "application/json"
+                    }
+                }
+            )
+            .then(response => {
+                if (response.status != 200) {
+                    return refresh_token();
+                } else {
+                    return response.json();
+                }
+            });
+        }
+
+        function refresh_token() {
+            window.location.hash = '';
+            var scope = 'user-read-private playlist-read-private user-library-read user-follow-read';
+            var login_url = 'https://accounts.spotify.com/authorize?client_id=' + client_id
+                    + '&redirect_uri=' + encodeURIComponent(window.location.href)
+                    + '&scope=' + encodeURIComponent(scope)
+                    + '&response_type=token';
+            window.location.href = login_url;
+        }
+
+        function display_section(section) {
+            for (const el of document.getElementsByTagName("section")) {
+                if (el.classList.contains(section)) {
+                    el.classList.remove("hidden");
+                } else {
+                    el.classList.add("hidden");
+                }
+            }
+        }
+
+        function show_playlists() {
+            display_section("playlists");
+            load_playlists().then(playlists => {
+                playlists.forEach(add_playlist_item);
+            });
+        }
+
+        function load_playlists(url, playlists) {
+            url = url || "/v1/me/playlists";
+            playlists = playlists || [];
+
+            return spotify_fetch(url).then(({items, next}) => {
+                if (next) {
+                    return load_playlists(next, playlists.concat(items));
+                } else {
+                    return new Promise(resolve => {
+                        resolve(playlists);
+                    });
+                }
+            })
+        }
+
+        function add_playlist_item({name, uri, images, tracks: {href: tracks_url}}) {
+            var ul = document.getElementById("playlists");
+            var li = document.createElement("li");
+            if (images && images.length) {
+                var img = document.createElement("img");
+                img.src = images[0].url;
+                img.height = 300;
+                img.width = 300;
+                img.title = name;
+                li.appendChild(img);
+            }
+            li.addEventListener("click", () => {
+                select_playlist(name, tracks_url);
+            })
+            ul.appendChild(li);
+        }
+
+        function select_playlist(name, tracks) {
+            localStorage.setItem("playlist_tracks", tracks);
+            localStorage.setItem("playlist_name", name);
+            location.reload();
+        }
+
+        function start_quiz() {
+            display_section("quiz");
+            document.querySelector("#clear_playlist").addEventListener("click", e => {
+                e.preventDefault();
+                localStorage.removeItem("playlist_tracks");
+                localStorage.removeItem("playlist_name");
+                location.reload();
+            })
+            document.querySelector("section.quiz h1").textContent = localStorage.getItem("playlist_name");
+            load_playlist(localStorage.getItem("playlist_tracks")).then(tracks => {
+                tracks.forEach(add_track);
+            });
+        }
+
+        function load_playlist(url, tracks) {
+            tracks = tracks || [];
+            return spotify_fetch(url).then(({items, next}) => {
+                items.forEach(({track}) => {
+                    tracks.push(track);
+                });
+                if (next) {
+                    return load_playlist(next, tracks);
+                } else {
+                    return new Promise(resolve => {
+                        resolve(tracks);
+                    })
+                }
+            })
+        }
+
+        function add_track({preview_url, album, uri, name}) {
+            if (!preview_url) {
+                return;
+            }
+            var ul = document.getElementById("tracks");
+            var li = document.createElement("li");
+            li.textContent = name;
+            li.addEventListener("click", () => {
+                play_preview(preview_url);
+            })
+            ul.appendChild(li);
+        }
+
+        function play_preview(preview_url) {
+            const audio = document.querySelector("audio#preview");
+            audio.pause();
+            audio.src = preview_url;
+            audio.play();
+        }
+
+        function handle_auth_callback() {
+            var hash = parse_hash();
+            if (hash.access_token) {
+                localStorage.setItem('token', hash.access_token);
+            }
+        }
+
+        function parse_hash() {
+            var hash = {};
+            location.hash.replace(/^#\/?/, '').split('&').forEach(function(kv) {
+                var spl = kv.indexOf('=');
+                if (spl != -1) {
+                    hash[kv.substring(0, spl)] = decodeURIComponent(kv.substring(spl+1));
+                }
+            });
+            location.hash = '';
+            return hash;
+        }
+
+        document.addEventListener("DOMContentLoaded", () => {
+            if (!!window.location.hash) {
+                handle_auth_callback();
+            }
+            if (!localStorage.getItem("playlist_tracks")) {
+                show_playlists();
+            } else {
+                start_quiz();
+            }
+        });
+
+        // })();
+    </script>
+</body>
+</html>
