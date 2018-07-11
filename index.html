@@ -9,7 +9,7 @@
         body {
             font-family: system-ui, sans-serif;
             margin: 0;
-            padding: 1em;
+            padding: 0;
             background-color: black;
             color: silver;
         }
@@ -28,6 +28,7 @@
         #playlists li {
             margin: 1em 0;
             float: left;
+            cursor: pointer;
         }
 
         #choices {
@@ -48,6 +49,11 @@
             min-width: 0;
         }
 
+        #choices li.artwork {
+            padding: 0;
+            box-shadow: none;
+        }
+
         #choices li img {
             max-width: 100%;
             object-fit: contain;
@@ -55,6 +61,26 @@
 
         #choices li:hover {
             box-shadow: 0 0 15px #0ff;
+        }
+
+        section {
+            box-shadow: 0 0 10px red;
+            padding: 1em;
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            left: 0;
+            right: 0;
+        }
+
+        #result {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 2em;
+            background-color: #333;
         }
 
         .hidden {
@@ -74,7 +100,25 @@
 
         <audio id="preview" autoplay loop controls></audio>
 
+        <h2 class="question"></h2>
+
         <ul id="choices"></ul>
+
+        <div id="result" class="hidden">
+            <h1 class="hidden correct">Correct!</h1>
+            <h1 class="hidden incorrect">Nope!</h1>
+
+            <img class="artwork" width=300 height=300 >
+            <p>
+                <span class="artist">artist</span> &ndash;
+                <span class="track">track</span>
+            </p>
+            <p>
+                from <span class="album">album</span>
+            </p>
+
+            <button id="next_round">Next round</button>
+        </div>
     </section>
 
     <script type="text/javascript">
@@ -193,6 +237,7 @@
             const choices = sample(tracks, 3);
             console.log(choices);
             display_choices(choices);
+            document.querySelector("#next_round").addEventListener("click", () => location.reload());
         }
 
         function display_choices(choices) {
@@ -204,10 +249,12 @@
                 render_item_artwork,
             ], 1)[0];
 
+            document.querySelector(".quiz .question").textContent = render_item.question;
+
             for (const choice of choices) {
                 const li = render_item(choice);
                 li.addEventListener("click", () => {
-                    choice_made(choice, choice === correct);
+                    choice_made(choice, correct);
                 });
                 ul.appendChild(li);
             }
@@ -219,12 +266,14 @@
             li.textContent = track.name;
             return li;
         }
+        render_item_track_name.question = "What track is this?";
 
         function render_item_artist_names(track) {
             const li = document.createElement("li");
             li.textContent = track.artists.map(artist => artist.name).join(", ");
             return li;
         }
+        render_item_artist_names.question = "What artist is playing?";
 
         function render_item_artwork(track) {
             if (!track.album.images.length) {
@@ -232,25 +281,41 @@
                 return render_item_track_name(track);
             }
             const li = document.createElement("li");
+            li.classList.add('artwork');
             const img = document.createElement("img");
             img.src = track.album.images[0].url;
             li.appendChild(img);
             return li;
         }
+        render_item_artwork.question = "What album is this from?";
 
-        function choice_made(choice, correct) {
-            console.log(correct ? "CORRECT!" : "Nope :(");
-            setTimeout(() => { location.reload() }, 1000);
+        function choice_made(choice, correct_choice) {
+            const correct = choice === correct_choice;
+            if (correct) {
+                document.querySelectorAll("#result .correct").forEach(el => el.classList.remove('hidden'))
+                document.querySelectorAll("#result .incorrect").forEach(el => el.classList.add('hidden'))
+            } else {
+                document.querySelectorAll("#result .incorrect").forEach(el => el.classList.remove('hidden'))
+                document.querySelectorAll("#result .correct").forEach(el => el.classList.add('hidden'))
+            }
+            document.querySelector("#result .artist").textContent = correct_choice.artists.map(artist => artist.name).join(", ");
+            document.querySelector("#result .track").textContent = correct_choice.name;
+            document.querySelector("#result .album").textContent = correct_choice.album.name;
+
+            const img = document.querySelector("#result img.artwork");
+            if (correct_choice.album.images.length) {
+                img.src = correct_choice.album.images[0].url;
+            } else {
+                img.src = "";
+            }
+
+            document.querySelector("#result").classList.remove('hidden');
         }
 
         function load_playlist(url, tracks) {
             tracks = tracks || [];
             return spotify_fetch(url).then(({items, next}) => {
-                items.forEach(({track}) => {
-                    if (track.preview_url) {
-                        tracks.push(track);
-                    }
-                });
+                tracks = tracks.concat(items.map(({track}) => track).filter(track => track.preview_url));
                 if (next) {
                     return load_playlist(next, tracks);
                 } else {
@@ -278,9 +343,8 @@
         function play_preview(preview_url) {
             console.log(preview_url);
             const audio = document.querySelector("audio#preview");
-            // audio.pause();
             audio.src = preview_url;
-            // audio.play();
+            audio.play();
         }
 
         function handle_auth_callback() {
