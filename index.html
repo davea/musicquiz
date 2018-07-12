@@ -195,7 +195,10 @@
             })
         }
 
-        function add_playlist_item({name, uri, images, tracks: {href: tracks_url}}) {
+        function add_playlist_item({name, uri, images, tracks: {href: tracks_url, total}}) {
+            if (total == 0) {
+                return;
+            }
             var ul = document.getElementById("playlists");
             var li = document.createElement("li");
             if (images && images.length) {
@@ -367,6 +370,9 @@
         }
 
         function sample(population, k) {
+            if (population.length < k) {
+                throw "list too small to sample.";
+            }
             const chosen = new Set([]);
             while (chosen.size < k) {
                 chosen.add(population[Math.floor(Math.random() * Math.floor(population.length))]);
