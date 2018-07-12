@@ -6,6 +6,24 @@
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
     <title>Spotify Music Quiz</title>
     <style>
+        * {
+            --playlists-cols: 4;
+            --playlists-height: 300px;
+        }
+
+        @media (max-width: 900px) {
+            * {
+                --playlists-cols: 3;
+            }
+        }
+
+        @media (max-width: 640px) {
+            * {
+                --playlists-cols: 2;
+            }
+        }
+
+
         body {
             font-family: system-ui, sans-serif;
             margin: 0;
@@ -23,12 +41,47 @@
             list-style: none;
             padding: 0;
             margin: 0;
-            position: relative;
+            display: flex;
+            flex-wrap: wrap;
+            flex-direction: row;
         }
+
         #playlists li {
-            margin: 1em 0;
-            float: left;
             cursor: pointer;
+            flex: calc(100% / var(--playlists-cols));
+            text-align: center;
+            background-size: contain;
+            background-position: center center;
+            background-repeat: no-repeat;
+            /* box-shadow: 0 0 10px #f0f; */
+            height: var(--playlists-height);
+            position: relative;
+            overflow: hidden;
+            border: solid 5px black;
+            box-sizing: border-box;
+        }
+
+        #playlists li p {
+            background-color: rgba(49, 49, 49, 0.781);
+            font-weight: bolder;
+            color: white;
+            font-size: 3em;
+            position: absolute;
+            margin: 0;
+            padding: 0;
+            top: 0;
+            right: 0;
+            left: 0;
+            bottom: 0;
+            display: none;
+            justify-content: center;
+            align-items: center;
+            -webkit-backdrop-filter: blur(10px);
+            backdrop-filter: blur(10px);
+        }
+
+        #playlists li:hover p {
+            display: flex;
         }
 
         #choices {
@@ -64,7 +117,7 @@
         }
 
         section {
-            box-shadow: 0 0 10px red;
+            /* box-shadow: 0 0 10px red; */
             padding: 1em;
             position: absolute;
             top: 0;
@@ -202,13 +255,13 @@
             var ul = document.getElementById("playlists");
             var li = document.createElement("li");
             if (images && images.length) {
-                var img = document.createElement("img");
-                img.src = images[0].url;
-                img.height = 300;
-                img.width = 300;
-                img.title = name;
-                li.appendChild(img);
+                li.style.backgroundImage = "url(" + images[0].url + ")";
             }
+            var p = document.createElement("p");
+            var span = document.createElement("span");
+            span.textContent = name;
+            p.appendChild(span);
+            li.appendChild(p);
             li.addEventListener("click", () => {
                 select_playlist(name, tracks_url);
             })
