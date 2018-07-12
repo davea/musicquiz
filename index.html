@@ -175,6 +175,9 @@
     </section>
 
     <script type="text/javascript">
+        if (window.location.protocol !== "https:") window.location.protocol = "https:";
+    </script>
+    <script type="text/javascript">
         // (() => {
 
         const client_id = '4f23cdad03ba4bdda4098bc19df5f53a';
@@ -207,10 +210,10 @@
         }
 
         function refresh_token() {
-            window.location.hash = '';
-            var scope = 'user-read-private playlist-read-private user-library-read user-follow-read';
-            var login_url = 'https://accounts.spotify.com/authorize?client_id=' + client_id
-                    + '&redirect_uri=' + encodeURIComponent(window.location.href)
+            const redirect_uri = window.location.origin + "/";
+            const scope = 'user-read-private playlist-read-private user-library-read user-follow-read';
+            const login_url = 'https://accounts.spotify.com/authorize?client_id=' + client_id
+                    + '&redirect_uri=' + encodeURIComponent(redirect_uri)
                     + '&scope=' + encodeURIComponent(scope)
                     + '&response_type=token';
             window.location.href = login_url;
