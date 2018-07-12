@@ -144,7 +144,11 @@
 <body>
     <section class="hidden playlists">
         <h1>Choose a playlist</h1>
-        <ul id="playlists"></ul>
+        <ul id="playlists">
+            <li>
+                Loading...
+            </li>
+        </ul>
     </section>
 
     <section class="hidden quiz">
@@ -245,10 +249,14 @@
                     return load_playlists(next, playlists.concat(items));
                 } else {
                     return new Promise(resolve => {
+                        document.getElementById("playlists").innerHTML = '';
                         resolve(playlists);
                     });
                 }
             })
+            .catch(() => {
+                document.getElementById("playlists").innerHTML = 'Error :(';
+            });
         }
 
         function add_playlist_item({name, uri, images, tracks: {href: tracks_url, total}}) {
